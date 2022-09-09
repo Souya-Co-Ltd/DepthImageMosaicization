@@ -1,9 +1,10 @@
+import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
 def create_heatmap(filter_blur: np.ndarray):
     """
-    ヒートマップの作成    
+    ヒートマップの作成
     """
     # フィルタの数値分布画像(1000倍しているのは、画像として差分を強調するため)
     _filter_blur = filter_blur.copy()
@@ -11,7 +12,7 @@ def create_heatmap(filter_blur: np.ndarray):
     _filter_blur[0,1] = 0
     sm = plt.cm.ScalarMappable(cmap=None)
     img_filter_blur = sm.to_rgba(diff_stanh_filter_blur * 1000, bytes=True)[:, :, :3]
-    return 
+    return
 
 
 def put_text(img, text, pos=(10, 20)):

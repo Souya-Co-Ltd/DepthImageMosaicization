@@ -29,8 +29,8 @@ I tested in the following environment
 深度推定モデルは「MiDaS」を使用します。  
 The depth estimation model uses "MiDaS".
 
-「MiDaS」の実行にはPytorchが必要となります。  
-Pytorch is required to run "MiDaS".
+「[MiDaS](https://pytorch.org/hub/intelisl_midas_v2/)」の実行にはPytorchが必要となります。  
+Pytorch is required to run ["MiDaS"](https://pytorch.org/hub/intelisl_midas_v2/).
 
 Pytorchのインストールは、Nvidiaが用意しているマニュアルを参照してください。  
 Please refer to the manual provided by Nvidia for installing Pytorch.
@@ -54,7 +54,7 @@ $ python3 -m pip install -r requirements.txt;
 ## Install
 
 ```
-$ git clone URL
+$ git clone {git repository URL}
 ```
 
 ## Run program
