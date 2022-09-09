@@ -13,7 +13,7 @@ With object detection, however, all people on the screen are displayed, and non-
 Therefore, we propose to use a monocular camera depth estimation model to perform mosaicing by depth.
 
 # Hardware requirements
-JetsonとJetsonが認識可能なカメラモジュール ,インターネットへ接続できる環境が必要です。
+JetsonとJetsonが認識可能なカメラモジュール ,インターネットへ接続できる環境が必要です。  
 Jetson and a Jetson-recognizable camera module , Internet access is required.
 
 私たちは、次の実行環境を用意し検証しました。  
@@ -70,7 +70,7 @@ When you run the program, you will see a screen like the one below.
 
 ![Demonstration](files/demonstration.png)
 
-スクリーンショットの画像は以下
+スクリーンショットの画像は以下を表しています。
 | 　 | 　 | 　 |
 | :--- | :--- | :--- |
 | [カメラ画像] | [近距離判定結果] | [近距離画像] |
