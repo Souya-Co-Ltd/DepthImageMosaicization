@@ -4,6 +4,7 @@
 import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
+from time import perf_counter
 
 import cv2
 import numpy as np
@@ -29,9 +30,55 @@ def main():
     # ===========================================
     # カメラ画像キャプチャ
     # ===========================================
-    cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    # capture pipeline
+    input_width = 640
+    input_height = 480
+    framerate = 30
+    capture_pipeline = f"v4l2src device=/dev/video0 \
+        ! video/x-raw, width=(int){input_width}, height=(int){input_height}, framerate={framerate}/1, format=(string)YUY2 \
+        ! videoconvert ! video/x-raw, format=BGR \
+        ! appsink max-buffers=1 drop=True"
+
+    # create capture
+    cap = cv2.VideoCapture()
+    try:
+        # capture open
+        cap.setExceptionMode(True)
+        cap.open(capture_pipeline, cv2.CAP_GSTREAMER)
+        if not cap.isOpened():
+            print(f"{device} is can't opened")
+            return
+
+    except Exception as e:
+        print(f"{device} is can't opened")
+        print("Camera Error", e)
+        if cap.isOpened():
+            cap.release()
+        return
+
+    # =====================================================
+    # Writer
+    # =====================================================
+    # write pipeline
+    write_pipeline = f"appsrc ! nveglglessink sync=False"
+    # write_pipeline = "appsrc ! video/x-raw, format=BGR ! videoconvert ! x264enc ! flvmux ! filesink location=xyz.flv"
+
+    # create writer
+    writer = cv2.VideoWriter()
+    try:
+        # writer open
+        writer.open(write_pipeline, cv2.CAP_GSTREAMER, 0, framerate, (1320, 990))
+        if not writer.isOpened():
+            print(f"writer is can't opend")
+            return
+
+    except Exception as e:
+        print(f"writer is can't opened")
+        print("Camera Error", e)
+        if writer.isOpened():
+            writer.release()
+        return
+
     # ===========================================
     # 深度AIモデルの準備
     # ===========================================
@@ -47,7 +94,8 @@ def main():
     # モデルをGPUに移動させる（可能であれば
     device = torch.device(
         "cuda") if torch.cuda.is_available() else torch.device("cpu")
-    midas.to(device)
+    midas = midas.to(device)
+    # midas = midas.half()
     midas.eval()    # 推論モード
 
     # transformsをロードして、大規模または小規模なモデルの画像のサイズを変更および正規化します
@@ -60,13 +108,12 @@ def main():
 
     try:
         while True:
+            lap_time = perf_counter()
+
             ret, image_org = cap.read()
             if image_org is None:
                 print("image_org is None")
                 continue
-
-            fps = frame_rate.get()           # フレームレート取得
-            fps_str = '%f' % fps
 
             height, width = image_org.shape[:2]
             ratio = settings.CAMERA_IMG_SIZE / height
@@ -79,14 +126,14 @@ def main():
 
             if img is None:
                 continue
-
             # ===========================================
             # 深度計算
             # ===========================================
             # 元の解像度を予測してサイズ変更する
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-            input_batch = transform(img).to(device)
+            input_batch = transform(img).to(device,non_blocking=True)
+
             with torch.no_grad():
                 prediction = midas(input_batch)
 
@@ -115,7 +162,8 @@ def main():
             img_depth = sm.to_rgba(output, bytes=True)[:, :, :3]
 
             # ぼかし画像の作成
-            img_gauss = cv2.GaussianBlur(img, ksize=settings.KARNEL, sigmaX=settings.SIGMAX)
+            # img_gauss = cv2.GaussianBlur(img, ksize=settings.KARNEL, sigmaX=settings.SIGMAX)
+            img_gauss = mosaic(img)
 
             # カラー変換しておく
             _img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
@@ -165,17 +213,23 @@ def main():
                 np.hstack([_img_depth, _img_filter_blur_far, _img_filtered_gauss_far.astype(np.uint8)])])
 
             # 表示
-            cv2.imshow('Result', img_merge)
+            writer.write(img_merge)
+            lap_time = perf_counter()
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
+    except KeyboardInterrupt:
+        pass
     except BaseException:
         import traceback
         traceback.print_exc()
     finally:
-        cap.release()
-        cv2.destroyAllWindows()
+        if cap.isOpened():
+            cap.release()
+        if writer.isOpened():
+            writer.release()
+
+def mosaic(src, ratio=0.07):
+    small = cv2.resize(src, None, fx=ratio, fy=ratio, interpolation=cv2.INTER_NEAREST)
+    return cv2.resize(small, src.shape[:2][::-1], interpolation=cv2.INTER_NEAREST)
 
 if __name__ == "__main__":
     main()
